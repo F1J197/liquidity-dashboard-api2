@@ -85,9 +85,9 @@ export default async function handler(req, res) {
     } catch (e) {
       console.error('BTFP error:', e);
     }
-
-    // Fetch GCF Volatility from scraper
-    let gcfVolatility = 125;
+    
+    // 8. FETCH GCF VOLATILITY FROM YOUR SCRAPER
+    let gcfVolatility = 125; // Default
     try {
       const gcfResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/gcf-scraper');
       const gcfData = await gcfResponse.json();
@@ -96,8 +96,8 @@ export default async function handler(req, res) {
       console.error('GCF scraping error:', e);
     }
     
-    // Fetch Cross-Currency Basis from scraper
-    let crossCurrencyBasis = -65;
+    // 9. FETCH CROSS-CURRENCY BASIS FROM YOUR SCRAPER
+    let crossCurrencyBasis = -65; // Default
     try {
       const basisResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/basis-scraper');
       const basisData = await basisResponse.json();
@@ -112,23 +112,23 @@ export default async function handler(req, res) {
       btfp: btfpValue,
       ecbAssets: ecbAssets,
       fxSwapUsage: fxSwapUsage,
-      gcfVolatility: 125, // Still need DTCC
-      crossCurrencyBasis: -65, // Still need Bloomberg
+      gcfVolatility: gcfVolatility,
+      crossCurrencyBasis: crossCurrencyBasis,
       financialConditions: financialConditions,
       mmfInstitutional: mmfInstitutional,
       dealerPositions: dealerPositions,
       timestamp: new Date().toISOString(),
       dataQuality: {
-      bitcoin: 'live',
-      ecbAssets: ecbAssets !== 4500 ? 'live' : 'fallback',
-      fxSwapUsage: fxSwapUsage !== 45 ? 'live' : 'fallback', 
-      financialConditions: 'live',
-      mmfInstitutional: 'live',
-      dealerPositions: dealerPositions !== -250 ? 'live' : 'fallback',
-      btfp: btfpValue !== 85 ? 'live' : 'fallback',
-      gcfVolatility: gcfVolatility !== 125 ? 'live' : 'mock',  // Update this
-      crossCurrencyBasis: crossCurrencyBasis !== -65 ? 'live' : 'mock'  // Update this
-    }
+        bitcoin: 'live',
+        ecbAssets: ecbAssets !== 4500 ? 'live' : 'fallback',
+        fxSwapUsage: fxSwapUsage !== 45 ? 'live' : 'fallback', 
+        financialConditions: 'live',
+        mmfInstitutional: 'live',
+        dealerPositions: dealerPositions !== -250 ? 'live' : 'fallback',
+        btfp: btfpValue !== 85 && btfpValue !== 64.4 ? 'live' : 'fallback',
+        gcfVolatility: gcfVolatility !== 125 ? 'live' : 'mock',
+        crossCurrencyBasis: crossCurrencyBasis !== -65 ? 'live' : 'mock'
+      }
     });
   } catch (error) {
     console.error('Error in all-data:', error);
