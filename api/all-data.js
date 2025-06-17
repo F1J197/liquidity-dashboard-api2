@@ -86,27 +86,25 @@ export default async function handler(req, res) {
       console.error('BTFP error:', e);
     }
 
-    // Add these to your all-data.js
-
-// Fetch GCF Volatility from scraper
-let gcfVolatility = 125;
-try {
-  const gcfResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/gcf-scraper');
-  const gcfData = await gcfResponse.json();
-  gcfVolatility = gcfData.value || 125;
-} catch (e) {
-  console.error('GCF scraping error:', e);
-}
-
-// Fetch Cross-Currency Basis from scraper
-let crossCurrencyBasis = -65;
-try {
-  const basisResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/basis-scraper');
-  const basisData = await basisResponse.json();
-  crossCurrencyBasis = basisData.value || -65;
-} catch (e) {
-  console.error('Basis scraping error:', e);
-}
+    // Fetch GCF Volatility from scraper
+    let gcfVolatility = 125;
+    try {
+      const gcfResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/gcf-scraper');
+      const gcfData = await gcfResponse.json();
+      gcfVolatility = gcfData.value || 125;
+    } catch (e) {
+      console.error('GCF scraping error:', e);
+    }
+    
+    // Fetch Cross-Currency Basis from scraper
+    let crossCurrencyBasis = -65;
+    try {
+      const basisResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/basis-scraper');
+      const basisData = await basisResponse.json();
+      crossCurrencyBasis = basisData.value || -65;
+    } catch (e) {
+      console.error('Basis scraping error:', e);
+    }
     
     // Return all data
     res.status(200).json({
@@ -121,16 +119,16 @@ try {
       dealerPositions: dealerPositions,
       timestamp: new Date().toISOString(),
       dataQuality: {
-        bitcoin: 'live',
-        ecbAssets: ecbAssets !== 4500 ? 'live' : 'fallback',
-        fxSwapUsage: fxSwapUsage !== 45 ? 'live' : 'fallback', 
-        financialConditions: 'live',
-        mmfInstitutional: 'live',
-        dealerPositions: dealerPositions !== -250 ? 'live' : 'fallback',
-        btfp: btfpValue !== 85 ? 'live' : 'fallback',
-        gcfVolatility: 'mock',
-        crossCurrencyBasis: 'mock'
-      }
+  bitcoin: 'live',
+  ecbAssets: ecbAssets !== 4500 ? 'live' : 'fallback',
+  fxSwapUsage: fxSwapUsage !== 45 ? 'live' : 'fallback', 
+  financialConditions: 'live',
+  mmfInstitutional: 'live',
+  dealerPositions: dealerPositions !== -250 ? 'live' : 'fallback',
+  btfp: btfpValue !== 85 ? 'live' : 'fallback',
+  gcfVolatility: gcfVolatility !== 125 ? 'live' : 'mock',  // Update this
+  crossCurrencyBasis: crossCurrencyBasis !== -65 ? 'live' : 'mock'  // Update this
+}
     });
   } catch (error) {
     console.error('Error in all-data:', error);
