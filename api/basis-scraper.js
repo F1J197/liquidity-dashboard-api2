@@ -1,85 +1,58 @@
 // api/basis-scraper.js
-import * as cheerio from 'cheerio';
-
 export default async function handler(req, res) {
   try {
-    let crossCurrencyBasis = -65; // Default
-    let source = 'Calculated';
+    let crossCurrencyBasis = -65;
+    let source = 'Default';
     
-    // Method 1: Try to scrape from financial news sites
+    // Method 1: Calculate from interest rate differentials
     try {
-      // FT or Reuters often publish basis swap data
-      const newsResponse = await fetch('https://www.reuters.com/markets/currencies/');
-      const newsHtml = await newsResponse.text();
-      const $news = cheerio.load(newsHtml);
+      const FRED_API_KEY = 'baf5a172a9b068e621dd4f80fc13dad2';
       
-      // Look for EUR/USD basis mentions
-      $news('*:contains("EUR/USD basis"), *:contains("cross-currency basis")').each((i, el) => {
-        const text = $news(el).text();
-        const match = text.match(/(-?\d+\.?\d*)\s*(bps|basis points)/i);
-        if (match) {
-          crossCurrencyBasis = parseFloat(match[1]);
-          source = 'Reuters Markets';
-        }
-      });
-    } catch (e) {
-      console.log('News scraping failed:', e);
-    }
-    
-    // Method 2: Calculate from central bank data
-    if (source === 'Calculated') {
-      try {
-        // Get ECB EUR/USD forward points
-        const ecbResponse = await fetch(
-          'https://data.ecb.europa.eu/api/v1/data/dataflow/ECB/EXR/1.0/D.USD.EUR.SP00.A?lastNObservations=30&format=jsondata'
-        );
-        const ecbData = await ecbResponse.json();
+      // Get US 3-month rate
+      const usResponse = await fetch(
+        `https://api.stlouisfed.org/fred/series/observations?series_id=TB3MS&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`
+      );
+      const usData = await usResponse.json();
+      
+      // Get German 3-month rate (proxy for EUR)
+      const eurResponse = await fetch(
+        `https://api.stlouisfed.org/fred/series/observations?series_id=IR3TIB01DEM156N&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`
+      );
+      const eurData = await eurResponse.json();
+      
+      if (usData.observations?.[0] && eurData.observations?.[0]) {
+        const usRate = parseFloat(usData.observations[0].value);
+        const eurRate = parseFloat(eurData.observations[0].value);
         
-        // Get Fed data
-        const fedResponse = await fetch(
-          'https://www.federalreserve.gov/datadownload/Output.aspx?rel=H15&series=7fc004f7c76262d8e6ebdb350e2c7fbc&lastobs=5&from=&to=&filetype=csv&label=include&layout=seriescolumn'
-        );
-        const fedText = await fedResponse.text();
-        
-        // Parse and calculate implied basis from rate differentials
-        // This is a simplified calculation
-        if (ecbData && fedText) {
-          // Extract rates and calculate
-          const eurRate = 3.5; // Would parse from ECB
-          const usdRate = 5.25; // Would parse from Fed
-          const spotFx = 1.08; // Would parse from ECB
-          
-          // Simplified basis calculation
-          crossCurrencyBasis = ((eurRate - usdRate) - 2) * 25;
-          crossCurrencyBasis = Math.max(-150, Math.min(-20, crossCurrencyBasis));
-          source = 'Calculated from ECB/Fed rates';
-        }
-      } catch (e) {
-        console.log('Central bank calculation failed:', e);
+        // Simple basis calculation from rate differential
+        // When USD rates > EUR rates, basis is typically negative
+        const rateDiff = usRate - eurRate;
+        crossCurrencyBasis = -20 - (rateDiff * 15); // Scale the difference
+        crossCurrencyBasis = Math.round(Math.max(-150, Math.min(-10, crossCurrencyBasis)));
+        source = 'Calculated from US/EUR rate differential';
       }
+    } catch (e) {
+      console.error('Rate calculation error:', e);
     }
     
-    // Method 3: Scrape from financial data providers
-    if (source === 'Calculated') {
+    // Method 2: Use LIBOR-OIS spread as proxy
+    if (source === 'Default') {
       try {
-        // Try MarketWatch
-        const mwResponse = await fetch('https://www.marketwatch.com/investing/currency/eurusd');
-        const mwHtml = await mwResponse.text();
-        const $mw = cheerio.load(mwHtml);
+        const FRED_API_KEY = 'baf5a172a9b068e621dd4f80fc13dad2';
+        const oisResponse = await fetch(
+          `https://api.stlouisfed.org/fred/series/observations?series_id=TEDRATE&api_key=${FRED_API_KEY}&file_type=json&limit=1&sort_order=desc`
+        );
+        const oisData = await oisResponse.json();
         
-        // Look for forward rates or basis swaps
-        $mw('.article__content, .data-module').each((i, el) => {
-          const text = $mw(el).text();
-          if (text.includes('basis swap') || text.includes('cross-currency')) {
-            const match = text.match(/(-?\d+\.?\d*)\s*(basis points|bps)/i);
-            if (match) {
-              crossCurrencyBasis = parseFloat(match[1]);
-              source = 'MarketWatch';
-            }
-          }
-        });
+        if (oisData.observations?.[0]) {
+          const tedSpread = parseFloat(oisData.observations[0].value);
+          // TED spread correlates with cross-currency basis
+          crossCurrencyBasis = -40 - (tedSpread * 50);
+          crossCurrencyBasis = Math.round(Math.max(-150, Math.min(-10, crossCurrencyBasis)));
+          source = 'Estimated from TED spread';
+        }
       } catch (e) {
-        console.log('MarketWatch scraping failed:', e);
+        console.error('TED spread error:', e);
       }
     }
     
@@ -88,13 +61,14 @@ export default async function handler(req, res) {
       unit: 'bps',
       source: source,
       timestamp: new Date().toISOString(),
-      quality: source === 'Calculated' ? 'estimated' : 'scraped'
+      quality: source === 'Default' ? 'fallback' : 'calculated'
     });
   } catch (error) {
     res.status(500).json({ 
       value: -65, 
-      error: error.message,
-      source: 'Default' 
+      unit: 'bps',
+      source: 'Default',
+      error: error.message 
     });
   }
 }
