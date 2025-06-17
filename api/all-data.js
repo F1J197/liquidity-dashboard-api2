@@ -85,6 +85,28 @@ export default async function handler(req, res) {
     } catch (e) {
       console.error('BTFP error:', e);
     }
+
+    // Add these to your all-data.js
+
+// Fetch GCF Volatility from scraper
+let gcfVolatility = 125;
+try {
+  const gcfResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/gcf-scraper');
+  const gcfData = await gcfResponse.json();
+  gcfVolatility = gcfData.value || 125;
+} catch (e) {
+  console.error('GCF scraping error:', e);
+}
+
+// Fetch Cross-Currency Basis from scraper
+let crossCurrencyBasis = -65;
+try {
+  const basisResponse = await fetch('https://liquidity-dashboard-api2.vercel.app/api/basis-scraper');
+  const basisData = await basisResponse.json();
+  crossCurrencyBasis = basisData.value || -65;
+} catch (e) {
+  console.error('Basis scraping error:', e);
+}
     
     // Return all data
     res.status(200).json({
